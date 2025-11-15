@@ -10,7 +10,12 @@ import { config } from './config/app.config';
 const app: Application = express();
 
 // Middleware
-app.use(cors({ origin: config.corsOrigin }));
+// Support multiple CORS origins (comma-separated in .env)
+const allowedOrigins = config.corsOrigin.split(',').map(origin => origin.trim());
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
