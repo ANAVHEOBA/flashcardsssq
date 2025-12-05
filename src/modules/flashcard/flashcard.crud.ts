@@ -33,3 +33,30 @@ export const countFlashcardsByLanguage = async (languageId: string): Promise<num
 export const deleteFlashcardsByLanguage = async (languageId: string): Promise<void> => {
   await FlashcardModel.deleteMany({ languageId });
 };
+
+// Get flashcards without distractors (for migration)
+export const getFlashcardsWithoutDistractors = async (
+  languageId: string,
+  limit: number = 10
+): Promise<IFlashcard[]> => {
+  return await FlashcardModel.find({
+    languageId,
+    $or: [
+      { distractors: { $exists: false } },
+      { distractors: { $size: 0 } },
+      { distractors: null },
+    ],
+  }).limit(limit);
+};
+
+// Update flashcard distractors
+export const updateFlashcardDistractors = async (
+  flashcardId: string,
+  distractors: string[]
+): Promise<IFlashcard | null> => {
+  return await FlashcardModel.findByIdAndUpdate(
+    flashcardId,
+    { distractors },
+    { new: true }
+  );
+};

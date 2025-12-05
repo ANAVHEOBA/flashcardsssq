@@ -236,27 +236,37 @@ export const getQuizQuestions = async (
     throw new Error('Language not found');
   }
 
-  // Get all flashcards for this language (for generating wrong options)
+  // Get all flashcards for this language (fallback for flashcards without distractors)
   const allFlashcards = await FlashcardModel.find({ languageId: language._id });
 
   // Build quiz questions
   const quizQuestions: IQuizQuestion[] = practiceFlashcards.map((flashcard) => {
-    // Get 4 random wrong answers (different from the correct one)
-    const wrongOptions = allFlashcards
-      .filter((f) => String(f._id) !== String(flashcard._id))
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 4);
-
-    // Create options with IDs
+    // Create correct option
     const correctOption = {
       id: String(flashcard._id),
       text: flashcard.answer,
     };
 
-    const wrongOptionsList = wrongOptions.map((f) => ({
-      id: String(f._id),
-      text: f.answer,
-    }));
+    let wrongOptionsList: { id: string; text: string }[];
+
+    // Use stored distractors if available (AI-generated plausible wrong answers)
+    if (flashcard.distractors && flashcard.distractors.length >= 4) {
+      wrongOptionsList = flashcard.distractors.slice(0, 4).map((distractor, index) => ({
+        id: `distractor_${index}_${flashcard._id}`,
+        text: distractor,
+      }));
+    } else {
+      // Fallback: use random answers from other flashcards (old behavior)
+      const wrongOptions = allFlashcards
+        .filter((f) => String(f._id) !== String(flashcard._id))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 4);
+
+      wrongOptionsList = wrongOptions.map((f) => ({
+        id: String(f._id),
+        text: f.answer,
+      }));
+    }
 
     // Combine and shuffle all 5 options
     const allOptions = shuffleArray([correctOption, ...wrongOptionsList]);

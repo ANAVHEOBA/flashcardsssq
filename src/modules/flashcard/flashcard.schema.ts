@@ -28,6 +28,10 @@ export const FlashcardSchema = new Schema<IFlashcard>(
       required: [true, 'Code example is required'],
       trim: true,
     },
+    distractors: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,

@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "migrate:distractors": "ts-node src/scripts/generate-all-distractors.ts"
   },
   "keywords": [
     "flashcards",

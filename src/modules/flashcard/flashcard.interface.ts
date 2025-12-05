@@ -6,6 +6,7 @@ export interface IFlashcard extends Document {
   question: string;
   answer: string;
   codeExample: string;
+  distractors: string[]; // 4 AI-generated plausible but wrong answers
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +17,7 @@ export interface IFlashcardInput {
   question: string;
   answer: string;
   codeExample: string;
+  distractors: string[];
 }
 
 export interface IFlashcardGenerated {
@@ -23,4 +25,5 @@ export interface IFlashcardGenerated {
   question: string;
   answer: string;
   codeExample: string;
+  distractors: string[];
 }
