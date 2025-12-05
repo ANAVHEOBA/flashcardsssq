@@ -8,6 +8,7 @@ import {
   getQuizQuestions,
   validateQuizSession,
   completeQuizSession,
+  getQuizResults,
 } from './progress.crud';
 
 // Submit practice results
@@ -163,19 +164,53 @@ export const submitQuizResults = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    // Record the results
-    await recordPracticeSession(req.user.id, slug, results);
+    // Convert results to include isCorrect for practice session recording
+    const practiceResults = results.map((r: { flashcardId: string; selectedOptionId: string; isCorrect: boolean }) => ({
+      flashcardId: r.flashcardId,
+      isCorrect: r.isCorrect,
+    }));
 
-    // Mark session as completed
-    await completeQuizSession(sessionId, req.user.id);
+    // Record the results for progress tracking
+    await recordPracticeSession(req.user.id, slug, practiceResults);
+
+    // Mark session as completed and store detailed answers
+    await completeQuizSession(sessionId, req.user.id, results);
 
     res.status(200).json({
       message: 'Quiz results recorded successfully',
+      sessionId,
     });
   } catch (error) {
     console.error('Error submitting quiz results:', error);
     res.status(500).json({
       message: 'Failed to submit quiz results',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
+
+// Get quiz results after completion
+export const getQuizResultsController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { sessionId } = req.params;
+
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const results = await getQuizResults(sessionId, req.user.id);
+
+    if (!results) {
+      res.status(404).json({ message: 'Quiz results not found or quiz not completed' });
+      return;
+    }
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error getting quiz results:', error);
+    res.status(500).json({
+      message: 'Failed to get quiz results',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }

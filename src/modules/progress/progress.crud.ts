@@ -1,5 +1,5 @@
 import Progress, { QuizSession } from './progress.model';
-import { IPracticeResult, ILanguageStats, IUserProgressSummary, IQuizQuestion, IQuizResponseWithTimer } from './progress.interface';
+import { IPracticeResult, ILanguageStats, IUserProgressSummary, IQuizQuestion, IQuizResponseWithTimer, IQuizResultsResponse, IQuizAnswerRecord } from './progress.interface';
 import crypto from 'crypto';
 
 // Default quiz time limit in minutes
@@ -279,10 +279,12 @@ export const getQuizQuestions = async (
     userId: new Types.ObjectId(userId),
     languageSlug,
     flashcardIds: quizQuestions.map((q) => q.flashcardId),
+    questionsData: quizQuestions,
     startedAt,
     expiresAt,
     timeLimitMinutes: QUIZ_TIME_LIMIT_MINUTES,
     isCompleted: false,
+    totalQuestions: quizQuestions.length,
   });
 
   return {
@@ -323,10 +325,106 @@ export const validateQuizSession = async (
   return { valid: true, message: 'Session valid' };
 };
 
-// Mark quiz session as completed
-export const completeQuizSession = async (sessionId: string, userId: string): Promise<void> => {
+// Extended practice result with selected option
+export interface IQuizSubmitResult {
+  flashcardId: string;
+  selectedOptionId: string;
+  isCorrect: boolean;
+}
+
+// Mark quiz session as completed and store answers
+export const completeQuizSession = async (
+  sessionId: string,
+  userId: string,
+  results: IQuizSubmitResult[]
+): Promise<void> => {
+  const session = await QuizSession.findOne({
+    sessionId,
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!session) return;
+
+  // Build answer records with correct option IDs from stored questions
+  const answers: IQuizAnswerRecord[] = results.map((result) => {
+    const question = session.questionsData.find(
+      (q) => q.flashcardId === result.flashcardId
+    );
+    return {
+      flashcardId: result.flashcardId,
+      selectedOptionId: result.selectedOptionId,
+      correctOptionId: question?.correctOptionId || '',
+      isCorrect: result.isCorrect,
+    };
+  });
+
+  const score = results.filter((r) => r.isCorrect).length;
+
   await QuizSession.findOneAndUpdate(
     { sessionId, userId: new Types.ObjectId(userId) },
-    { isCompleted: true }
+    {
+      isCompleted: true,
+      completedAt: new Date(),
+      answers,
+      score,
+    }
   );
+};
+
+// Get quiz results after completion
+export const getQuizResults = async (
+  sessionId: string,
+  userId: string
+): Promise<IQuizResultsResponse | null> => {
+  const session = await QuizSession.findOne({
+    sessionId,
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!session) return null;
+  if (!session.isCompleted) return null;
+
+  // Build results with question details
+  const questions = session.questionsData.map((question) => {
+    const answer = session.answers?.find(
+      (a) => a.flashcardId === question.flashcardId
+    );
+
+    // Find the text for selected and correct options
+    const selectedOption = question.options.find(
+      (o) => o.id === answer?.selectedOptionId
+    );
+    const correctOption = question.options.find(
+      (o) => o.id === question.correctOptionId
+    );
+
+    return {
+      flashcardId: question.flashcardId,
+      keyword: question.keyword,
+      yourAnswer: selectedOption?.text || 'Not answered',
+      correctAnswer: correctOption?.text || '',
+      isCorrect: answer?.isCorrect || false,
+    };
+  });
+
+  const score = session.score || 0;
+  const totalQuestions = session.totalQuestions || session.questionsData.length;
+  const percentage = Math.round((score / totalQuestions) * 100);
+
+  // Calculate time taken in seconds
+  const timeTaken = session.completedAt
+    ? Math.round((session.completedAt.getTime() - session.startedAt.getTime()) / 1000)
+    : 0;
+
+  return {
+    sessionId: session.sessionId,
+    language: session.languageSlug,
+    score,
+    totalQuestions,
+    percentage,
+    passed: percentage >= 70,
+    completedAt: session.completedAt || new Date(),
+    timeTaken,
+    questions,
+  };
 };

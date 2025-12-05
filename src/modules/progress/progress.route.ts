@@ -6,6 +6,7 @@ import {
   getPracticeFlashcards,
   getQuizForPractice,
   submitQuizResults,
+  getQuizResultsController,
 } from './progress.controller';
 import { protect } from '../../middleware/auth.middleware';
 
@@ -18,5 +19,6 @@ router.get('/summary', protect, getProgressSummary);
 router.get('/practice/:slug', protect, getPracticeFlashcards);
 router.get('/quiz/:slug', protect, getQuizForPractice);
 router.post('/quiz/:slug', protect, submitQuizResults);
+router.get('/quiz/:sessionId/results', protect, getQuizResultsController);
 
 export default router;

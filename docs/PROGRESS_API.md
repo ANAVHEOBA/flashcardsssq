@@ -237,10 +237,100 @@ Content-Type: application/json
 - Must submit within 10 minutes of starting the quiz
 - Each session can only be submitted once
 - Use HTTP status 408 to detect timeout on frontend
+- Include `selectedOptionId` in results for review feature
+
+**Updated Request Body (for quiz results review):**
+```json
+{
+  "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "results": [
+    {
+      "flashcardId": "691847ce22fb596aaece17c4",
+      "selectedOptionId": "691847ce22fb596aaece17c4",
+      "isCorrect": true
+    },
+    {
+      "flashcardId": "691847ce22fb596aaece17c5",
+      "selectedOptionId": "691847ce22fb596aaece17cf",
+      "isCorrect": false
+    }
+  ]
+}
+```
 
 ---
 
-### 4. Submit Practice Results (No Timer)
+### 4. Get Quiz Results (Review)
+
+**Endpoint:** `GET /api/progress/quiz/:sessionId/results`
+
+**Description:** Get detailed quiz results after completion - shows all questions with your answer vs correct answer
+
+**Authentication:** Required (JWT Token)
+
+**URL Parameters:**
+- `sessionId` - The quiz session ID (obtained when starting the quiz)
+
+**Request Headers:**
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+**Success Response (200):**
+```json
+{
+  "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "language": "python",
+  "score": 7,
+  "totalQuestions": 10,
+  "percentage": 70,
+  "passed": true,
+  "completedAt": "2025-01-15T10:38:45.000Z",
+  "timeTaken": 525,
+  "questions": [
+    {
+      "flashcardId": "691847ce22fb596aaece17c4",
+      "keyword": "False",
+      "yourAnswer": "False is a boolean value representing the concept of 'not true'.",
+      "correctAnswer": "False is a boolean value representing the concept of 'not true'.",
+      "isCorrect": true
+    },
+    {
+      "flashcardId": "691847ce22fb596aaece17c5",
+      "keyword": "None",
+      "yourAnswer": "Def defines a function or method...",
+      "correctAnswer": "None represents the absence of a value or a null value.",
+      "isCorrect": false
+    }
+  ]
+}
+```
+
+**Field Descriptions:**
+- `sessionId` - The quiz session ID
+- `language` - Language slug
+- `score` - Number of correct answers
+- `totalQuestions` - Total number of questions
+- `percentage` - Score as percentage (0-100)
+- `passed` - Whether user passed (≥70%)
+- `completedAt` - When the quiz was submitted
+- `timeTaken` - Time taken in seconds
+- `questions` - Array of all questions with results
+  - `keyword` - The programming keyword
+  - `yourAnswer` - The answer text you selected
+  - `correctAnswer` - The correct answer text
+  - `isCorrect` - Whether your answer was correct
+
+**Error Response (404):**
+```json
+{
+  "message": "Quiz results not found or quiz not completed"
+}
+```
+
+---
+
+### 5. Submit Practice Results (No Timer)
 
 **Endpoint:** `POST /api/progress/practice/:slug`
 
@@ -308,7 +398,7 @@ Content-Type: application/json
 
 ---
 
-### 5. Get Language Progress
+### 6. Get Language Progress
 
 **Endpoint:** `GET /api/progress/language/:slug`
 
@@ -357,7 +447,7 @@ Authorization: Bearer <your-jwt-token>
 
 ---
 
-### 6. Get Overall Progress Summary
+### 7. Get Overall Progress Summary
 
 **Endpoint:** `GET /api/progress/summary`
 
@@ -535,10 +625,16 @@ curl -X POST "http://localhost:5000/api/progress/quiz/python" \
   -d '{
     "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "results": [
-      {"flashcardId": "691847ce22fb596aaece17c4", "isCorrect": true},
-      {"flashcardId": "691847ce22fb596aaece17c5", "isCorrect": false}
+      {"flashcardId": "691847ce22fb596aaece17c4", "selectedOptionId": "691847ce22fb596aaece17c4", "isCorrect": true},
+      {"flashcardId": "691847ce22fb596aaece17c5", "selectedOptionId": "691847ce22fb596aaece17cf", "isCorrect": false}
     ]
   }'
+```
+
+### Get Quiz Results (Review)
+```bash
+curl -X GET "http://localhost:5000/api/progress/quiz/a1b2c3d4-e5f6-7890-abcd-ef1234567890/results" \
+  -H "Authorization: Bearer <your-jwt-token>"
 ```
 
 ### Submit Practice Results (No Timer)

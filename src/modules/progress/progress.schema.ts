@@ -49,6 +49,33 @@ ProgressSchema.index({ userId: 1, flashcardId: 1 }, { unique: true });
 // Index for querying user progress by language
 ProgressSchema.index({ userId: 1, languageId: 1 });
 
+// Quiz Answer Record Schema
+const QuizAnswerRecordSchema = new Schema(
+  {
+    flashcardId: { type: String, required: true },
+    selectedOptionId: { type: String, required: true },
+    correctOptionId: { type: String, required: true },
+    isCorrect: { type: Boolean, required: true },
+  },
+  { _id: false }
+);
+
+// Quiz Question Schema (stored for results)
+const QuizQuestionSchema = new Schema(
+  {
+    flashcardId: { type: String, required: true },
+    keyword: { type: String, required: true },
+    options: [
+      {
+        id: { type: String, required: true },
+        text: { type: String, required: true },
+      },
+    ],
+    correctOptionId: { type: String, required: true },
+  },
+  { _id: false }
+);
+
 // Quiz Session Schema (for timer tracking)
 export const QuizSessionSchema = new Schema<IQuizSessionDocument>(
   {
@@ -70,6 +97,10 @@ export const QuizSessionSchema = new Schema<IQuizSessionDocument>(
       type: [String],
       required: true,
     },
+    questionsData: {
+      type: [QuizQuestionSchema],
+      required: true,
+    },
     startedAt: {
       type: Date,
       required: true,
@@ -87,6 +118,18 @@ export const QuizSessionSchema = new Schema<IQuizSessionDocument>(
     isCompleted: {
       type: Boolean,
       default: false,
+    },
+    completedAt: {
+      type: Date,
+    },
+    answers: {
+      type: [QuizAnswerRecordSchema],
+    },
+    score: {
+      type: Number,
+    },
+    totalQuestions: {
+      type: Number,
     },
   },
   {

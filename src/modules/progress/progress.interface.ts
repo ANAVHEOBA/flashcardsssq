@@ -63,15 +63,27 @@ export interface IQuizResponse {
 }
 
 // Quiz Session interfaces (for timer tracking)
+export interface IQuizAnswerRecord {
+  flashcardId: string;
+  selectedOptionId: string;
+  correctOptionId: string;
+  isCorrect: boolean;
+}
+
 export interface IQuizSession {
   sessionId: string;
   userId: Types.ObjectId;
   languageSlug: string;
   flashcardIds: string[];
+  questionsData: IQuizQuestion[];
   startedAt: Date;
   expiresAt: Date;
   timeLimitMinutes: number;
   isCompleted: boolean;
+  completedAt?: Date;
+  answers?: IQuizAnswerRecord[];
+  score?: number;
+  totalQuestions?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -84,4 +96,25 @@ export interface IQuizResponseWithTimer extends IQuizResponse {
   expiresAt: Date;
   timeLimitMinutes: number;
   timeRemainingSeconds: number;
+}
+
+// Quiz Results interfaces
+export interface IQuizResultQuestion {
+  flashcardId: string;
+  keyword: string;
+  yourAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+}
+
+export interface IQuizResultsResponse {
+  sessionId: string;
+  language: string;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  passed: boolean;
+  completedAt: Date;
+  timeTaken: number;
+  questions: IQuizResultQuestion[];
 }
