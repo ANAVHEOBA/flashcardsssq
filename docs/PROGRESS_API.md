@@ -68,11 +68,183 @@ Authorization: Bearer <your-jwt-token>
 
 ---
 
-### 2. Submit Practice Results
+### 2. Get Quiz Questions (Multiple Choice with Timer)
+
+**Endpoint:** `GET /api/progress/quiz/:slug?limit=10`
+
+**Description:** Get quiz questions in multiple-choice format with 5 options and a 10-minute timer
+
+**Authentication:** Required (JWT Token)
+
+**URL Parameters:**
+- `slug` - Language identifier (python, javascript, java, etc.)
+
+**Query Parameters:**
+- `limit` (optional) - Number of questions to return (default: 10)
+
+**Request Headers:**
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+**Success Response (200):**
+```json
+{
+  "language": "python",
+  "count": 3,
+  "questions": [
+    {
+      "flashcardId": "691847ce22fb596aaece17c4",
+      "keyword": "False",
+      "options": [
+        {
+          "id": "691847ce22fb596aaece17cf",
+          "text": "Def defines a function or method, creating a callable object with a given name and parameters."
+        },
+        {
+          "id": "691847ce22fb596aaece17e5",
+          "text": "With manages resources through context managers, ensuring proper setup and cleanup."
+        },
+        {
+          "id": "691847ce22fb596aaece17cb",
+          "text": "Await pauses execution of an async function until the awaited coroutine completes."
+        },
+        {
+          "id": "691847ce22fb596aaece17c6",
+          "text": "True is a boolean value representing logical truth."
+        },
+        {
+          "id": "691847ce22fb596aaece17c4",
+          "text": "False is a boolean value representing the concept of 'not true'."
+        }
+      ],
+      "correctOptionId": "691847ce22fb596aaece17c4"
+    }
+  ],
+  "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "startedAt": "2025-01-15T10:30:00.000Z",
+  "expiresAt": "2025-01-15T10:40:00.000Z",
+  "timeLimitMinutes": 10,
+  "timeRemainingSeconds": 600
+}
+```
+
+**Field Descriptions:**
+- `language` - Language identifier (slug)
+- `count` - Number of questions returned (use for "Question 1 of X" display)
+- `questions` - Array of quiz question objects
+  - `flashcardId` - ID of the flashcard (use for submitting results)
+  - `keyword` - The programming keyword being tested
+  - `options` - Array of 5 answer choices (shuffled)
+    - `id` - Option identifier
+    - `text` - Answer text
+  - `correctOptionId` - ID of the correct option (matches one option's `id`)
+- `sessionId` - **Unique session ID (required for submission)**
+- `startedAt` - When the quiz session started
+- `expiresAt` - When the quiz session expires (10 minutes after start)
+- `timeLimitMinutes` - Time limit in minutes (always 10)
+- `timeRemainingSeconds` - Seconds remaining (600 at start)
+
+**Timer Behavior:**
+- Each quiz has a **fixed 10-minute time limit**
+- Timer starts when quiz is fetched
+- Submissions after `expiresAt` will be rejected
+- Sessions auto-delete after 24 hours
+
+**Error Response (401):**
+```json
+{
+  "message": "Unauthorized"
+}
+```
+
+**Error Response (500):**
+```json
+{
+  "message": "Failed to get quiz questions",
+  "error": "Language not found"
+}
+```
+
+---
+
+### 3. Submit Quiz Results (with Timer Validation)
+
+**Endpoint:** `POST /api/progress/quiz/:slug`
+
+**Description:** Submit quiz results with session validation (checks timer)
+
+**Authentication:** Required (JWT Token)
+
+**URL Parameters:**
+- `slug` - Language identifier (python, javascript, java, etc.)
+
+**Request Headers:**
+```
+Authorization: Bearer <your-jwt-token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "results": [
+    {
+      "flashcardId": "691847ce22fb596aaece17c4",
+      "isCorrect": true
+    },
+    {
+      "flashcardId": "691847ce22fb596aaece17c5",
+      "isCorrect": false
+    }
+  ]
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Quiz results recorded successfully"
+}
+```
+
+**Error Response (400) - Missing Session:**
+```json
+{
+  "message": "Session ID is required"
+}
+```
+
+**Error Response (400) - Already Completed:**
+```json
+{
+  "message": "Quiz session already completed",
+  "expired": false
+}
+```
+
+**Error Response (408) - Time Expired:**
+```json
+{
+  "message": "Quiz session has expired. Time limit exceeded.",
+  "expired": true
+}
+```
+
+**Important Notes:**
+- `sessionId` is **required** - obtained from GET /api/progress/quiz/:slug
+- Must submit within 10 minutes of starting the quiz
+- Each session can only be submitted once
+- Use HTTP status 408 to detect timeout on frontend
+
+---
+
+### 4. Submit Practice Results (No Timer)
 
 **Endpoint:** `POST /api/progress/practice/:slug`
 
-**Description:** Submit practice session results to track progress
+**Description:** Submit practice session results to track progress (no timer validation)
 
 **Authentication:** Required (JWT Token)
 
@@ -136,7 +308,7 @@ Content-Type: application/json
 
 ---
 
-### 3. Get Language Progress
+### 5. Get Language Progress
 
 **Endpoint:** `GET /api/progress/language/:slug`
 
@@ -185,7 +357,7 @@ Authorization: Bearer <your-jwt-token>
 
 ---
 
-### 4. Get Overall Progress Summary
+### 6. Get Overall Progress Summary
 
 **Endpoint:** `GET /api/progress/summary`
 
@@ -349,7 +521,27 @@ curl -X GET "http://localhost:5000/api/progress/practice/python?limit=10" \
   -H "Authorization: Bearer <your-jwt-token>"
 ```
 
-### Submit Practice Results
+### Get Quiz Questions (with Timer)
+```bash
+curl -X GET "http://localhost:5000/api/progress/quiz/python?limit=5" \
+  -H "Authorization: Bearer <your-jwt-token>"
+```
+
+### Submit Quiz Results (with Session ID)
+```bash
+curl -X POST "http://localhost:5000/api/progress/quiz/python" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "results": [
+      {"flashcardId": "691847ce22fb596aaece17c4", "isCorrect": true},
+      {"flashcardId": "691847ce22fb596aaece17c5", "isCorrect": false}
+    ]
+  }'
+```
+
+### Submit Practice Results (No Timer)
 ```bash
 curl -X POST "http://localhost:5000/api/progress/practice/python" \
   -H "Authorization: Bearer <your-jwt-token>" \
@@ -377,7 +569,90 @@ curl -X GET "http://localhost:5000/api/progress/summary" \
 
 ---
 
-## Practice Session Workflow
+## Quiz Session Workflow (Multiple Choice with Timer)
+
+### Recommended Flow
+
+1. **Get Quiz Questions (Timer Starts)**
+   ```
+   GET /api/progress/quiz/python?limit=10
+   ```
+   Response includes `sessionId`, `expiresAt`, and `timeRemainingSeconds`
+
+2. **Start Countdown Timer**
+   - Display timer using `timeRemainingSeconds` (600 seconds = 10 min)
+   - Show: "Time Remaining: 9:59"
+
+3. **Display Questions**
+   - Show the keyword: "What does `False` mean?"
+   - Display 5 shuffled options (A, B, C, D, E)
+   - Show: "Question 1 of 10"
+
+4. **User Selects Answers**
+   - Compare selected option's `id` with `correctOptionId`
+   - Mark as correct if they match
+
+5. **Submit Results (Before Timer Expires)**
+   ```
+   POST /api/progress/quiz/python
+   Body: { sessionId, results: [{ flashcardId, isCorrect }, ...] }
+   ```
+
+### Example Quiz Flow
+```javascript
+// Frontend example
+const quiz = await fetch('/api/progress/quiz/python?limit=5', {
+  headers: { 'Authorization': 'Bearer ' + token }
+});
+const { questions, count, sessionId, expiresAt, timeRemainingSeconds } = await quiz.json();
+
+// Start countdown timer
+let secondsLeft = timeRemainingSeconds; // 600
+const timer = setInterval(() => {
+  secondsLeft--;
+  displayTimer(secondsLeft); // "9:59", "9:58", ...
+
+  if (secondsLeft <= 0) {
+    clearInterval(timer);
+    autoSubmit(); // Force submit when time runs out
+  }
+}, 1000);
+
+// User answers questions...
+const results = questions.map(q => ({
+  flashcardId: q.flashcardId,
+  isCorrect: userAnswers[q.flashcardId] === q.correctOptionId
+}));
+
+// Submit before timer expires
+const response = await fetch('/api/progress/quiz/python', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ sessionId, results })
+});
+
+if (response.status === 408) {
+  // Timer expired!
+  showMessage("Time's up! Your quiz was not submitted.");
+}
+```
+
+### Timer Error Handling
+```javascript
+// Check for timeout error
+if (response.status === 408) {
+  const data = await response.json();
+  // data.expired === true
+  // data.message === "Quiz session has expired. Time limit exceeded."
+}
+```
+
+---
+
+## Practice Session Workflow (Free Response)
 
 ### Recommended Flow
 

@@ -1,5 +1,9 @@
-import Progress from './progress.model';
-import { IPracticeResult, ILanguageStats, IUserProgressSummary } from './progress.interface';
+import Progress, { QuizSession } from './progress.model';
+import { IPracticeResult, ILanguageStats, IUserProgressSummary, IQuizQuestion, IQuizResponseWithTimer } from './progress.interface';
+import crypto from 'crypto';
+
+// Default quiz time limit in minutes
+const QUIZ_TIME_LIMIT_MINUTES = 10;
 import { LanguageModel } from '../language/language.model';
 import { FlashcardModel } from '../flashcard/flashcard.model';
 import { Types } from 'mongoose';
@@ -201,4 +205,128 @@ export const getFlashcardsForPractice = async (
     .map((item: FlashcardWithPriority) => item.flashcard);
 
   return sortedFlashcards;
+};
+
+// Shuffle array helper
+const shuffleArray = <T>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// Get quiz questions with multiple choice options and create timed session
+export const getQuizQuestions = async (
+  userId: string,
+  languageSlug: string,
+  limit: number = 10
+): Promise<IQuizResponseWithTimer> => {
+  // Get prioritized flashcards for practice
+  const practiceFlashcards = await getFlashcardsForPractice(userId, languageSlug, limit);
+
+  if (practiceFlashcards.length === 0) {
+    throw new Error('No flashcards available for this language');
+  }
+
+  // Get language to fetch all flashcards for wrong options
+  const language = await LanguageModel.findOne({ slug: languageSlug });
+  if (!language) {
+    throw new Error('Language not found');
+  }
+
+  // Get all flashcards for this language (for generating wrong options)
+  const allFlashcards = await FlashcardModel.find({ languageId: language._id });
+
+  // Build quiz questions
+  const quizQuestions: IQuizQuestion[] = practiceFlashcards.map((flashcard) => {
+    // Get 4 random wrong answers (different from the correct one)
+    const wrongOptions = allFlashcards
+      .filter((f) => String(f._id) !== String(flashcard._id))
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
+
+    // Create options with IDs
+    const correctOption = {
+      id: String(flashcard._id),
+      text: flashcard.answer,
+    };
+
+    const wrongOptionsList = wrongOptions.map((f) => ({
+      id: String(f._id),
+      text: f.answer,
+    }));
+
+    // Combine and shuffle all 5 options
+    const allOptions = shuffleArray([correctOption, ...wrongOptionsList]);
+
+    return {
+      flashcardId: String(flashcard._id),
+      keyword: flashcard.keyword,
+      options: allOptions,
+      correctOptionId: String(flashcard._id),
+    };
+  });
+
+  // Create quiz session with timer
+  const sessionId = crypto.randomUUID();
+  const startedAt = new Date();
+  const expiresAt = new Date(startedAt.getTime() + QUIZ_TIME_LIMIT_MINUTES * 60 * 1000);
+
+  await QuizSession.create({
+    sessionId,
+    userId: new Types.ObjectId(userId),
+    languageSlug,
+    flashcardIds: quizQuestions.map((q) => q.flashcardId),
+    startedAt,
+    expiresAt,
+    timeLimitMinutes: QUIZ_TIME_LIMIT_MINUTES,
+    isCompleted: false,
+  });
+
+  return {
+    language: languageSlug,
+    count: quizQuestions.length,
+    questions: quizQuestions,
+    sessionId,
+    startedAt,
+    expiresAt,
+    timeLimitMinutes: QUIZ_TIME_LIMIT_MINUTES,
+    timeRemainingSeconds: QUIZ_TIME_LIMIT_MINUTES * 60,
+  };
+};
+
+// Validate quiz session and check if expired
+export const validateQuizSession = async (
+  sessionId: string,
+  userId: string
+): Promise<{ valid: boolean; message: string; expired?: boolean }> => {
+  const session = await QuizSession.findOne({
+    sessionId,
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!session) {
+    return { valid: false, message: 'Quiz session not found' };
+  }
+
+  if (session.isCompleted) {
+    return { valid: false, message: 'Quiz session already completed' };
+  }
+
+  const now = new Date();
+  if (now > session.expiresAt) {
+    return { valid: false, message: 'Quiz session has expired. Time limit exceeded.', expired: true };
+  }
+
+  return { valid: true, message: 'Session valid' };
+};
+
+// Mark quiz session as completed
+export const completeQuizSession = async (sessionId: string, userId: string): Promise<void> => {
+  await QuizSession.findOneAndUpdate(
+    { sessionId, userId: new Types.ObjectId(userId) },
+    { isCompleted: true }
+  );
 };

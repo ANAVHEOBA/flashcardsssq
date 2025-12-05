@@ -5,6 +5,9 @@ import {
   getUserProgressByLanguage,
   getUserProgressSummary,
   getFlashcardsForPractice,
+  getQuizQuestions,
+  validateQuizSession,
+  completeQuizSession,
 } from './progress.crud';
 
 // Submit practice results
@@ -101,6 +104,78 @@ export const getPracticeFlashcards = async (req: AuthRequest, res: Response): Pr
     console.error('Error getting practice flashcards:', error);
     res.status(500).json({
       message: 'Failed to get practice flashcards',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
+
+// Get quiz questions for practice (multiple choice format with timer)
+export const getQuizForPractice = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { slug } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const quizResponse = await getQuizQuestions(req.user.id, slug, limit);
+
+    res.status(200).json(quizResponse);
+  } catch (error) {
+    console.error('Error getting quiz questions:', error);
+    res.status(500).json({
+      message: 'Failed to get quiz questions',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
+
+// Submit quiz results with session validation
+export const submitQuizResults = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { slug } = req.params;
+    const { sessionId, results } = req.body;
+
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    if (!sessionId) {
+      res.status(400).json({ message: 'Session ID is required' });
+      return;
+    }
+
+    if (!results || !Array.isArray(results)) {
+      res.status(400).json({ message: 'Results array is required' });
+      return;
+    }
+
+    // Validate session and check timer
+    const validation = await validateQuizSession(sessionId, req.user.id);
+    if (!validation.valid) {
+      res.status(validation.expired ? 408 : 400).json({
+        message: validation.message,
+        expired: validation.expired || false,
+      });
+      return;
+    }
+
+    // Record the results
+    await recordPracticeSession(req.user.id, slug, results);
+
+    // Mark session as completed
+    await completeQuizSession(sessionId, req.user.id);
+
+    res.status(200).json({
+      message: 'Quiz results recorded successfully',
+    });
+  } catch (error) {
+    console.error('Error submitting quiz results:', error);
+    res.status(500).json({
+      message: 'Failed to submit quiz results',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }

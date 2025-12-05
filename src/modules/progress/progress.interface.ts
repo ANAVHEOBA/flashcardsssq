@@ -42,3 +42,46 @@ export interface IUserProgressSummary {
   overallAccuracy: number;
   languageStats: ILanguageStats[];
 }
+
+// Quiz interfaces
+export interface IQuizOption {
+  id: string;
+  text: string;
+}
+
+export interface IQuizQuestion {
+  flashcardId: string;
+  keyword: string;
+  options: IQuizOption[];
+  correctOptionId: string;
+}
+
+export interface IQuizResponse {
+  language: string;
+  count: number;
+  questions: IQuizQuestion[];
+}
+
+// Quiz Session interfaces (for timer tracking)
+export interface IQuizSession {
+  sessionId: string;
+  userId: Types.ObjectId;
+  languageSlug: string;
+  flashcardIds: string[];
+  startedAt: Date;
+  expiresAt: Date;
+  timeLimitMinutes: number;
+  isCompleted: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface IQuizSessionDocument extends IQuizSession, Document {}
+
+export interface IQuizResponseWithTimer extends IQuizResponse {
+  sessionId: string;
+  startedAt: Date;
+  expiresAt: Date;
+  timeLimitMinutes: number;
+  timeRemainingSeconds: number;
+}
