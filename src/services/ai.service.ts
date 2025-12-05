@@ -85,20 +85,22 @@ The CORRECT answer is:
 "${correctAnswer}"
 
 Generate exactly 4 WRONG answers that:
+- MUST start with "The '${keyword}' keyword" or "The ${keyword} keyword" (same format as the correct answer)
 - Sound believable and technical (not obviously wrong)
 - Are similar in length and style to the correct answer
-- Are about related but different programming concepts
+- Describe plausible but INCORRECT functionality for this keyword
 - Would challenge a learner who doesn't fully understand the keyword
-- Do NOT contain the word "${keyword}" in a way that makes it obvious
+
+IMPORTANT: Every distractor MUST begin by mentioning the "${keyword}" keyword, so all 5 options (1 correct + 4 wrong) look identical in structure.
 
 Return ONLY a valid JSON array of 4 strings. No markdown, no explanations.
 
-Example output:
+Example for "async" keyword:
 [
-  "Plausible wrong answer 1...",
-  "Plausible wrong answer 2...",
-  "Plausible wrong answer 3...",
-  "Plausible wrong answer 4..."
+  "The 'async' keyword creates a new thread for parallel execution, allowing multiple operations to run simultaneously.",
+  "The 'async' keyword defines a generator function that can pause and yield multiple values over time.",
+  "The 'async' keyword declares a synchronous blocking function that waits for all operations to complete.",
+  "The 'async' keyword creates a callback queue that processes functions in FIFO order."
 ]`;
 
     const completion = await openai.chat.completions.create({
