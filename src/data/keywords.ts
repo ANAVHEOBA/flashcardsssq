@@ -152,6 +152,28 @@ export const languageKeywords: LanguageKeywords[] = [
       'reified', 'sealed', 'suspend', 'tailrec', 'vararg'
     ],
   },
+  {
+    name: 'Solidity',
+    slug: 'solidity',
+    keywords: [
+      // Basic data types
+      'address', 'bool', 'string', 'bytes', 'int', 'uint', 'fixed', 'ufixed',
+      // Contract elements
+      'contract', 'interface', 'library', 'struct', 'enum', 'event', 'error', 'constructor', 'function', 'modifier', 'fallback', 'receive',
+      // Visibility
+      'public', 'private', 'internal', 'external',
+      // Function modifiers
+      'pure', 'view', 'payable', 'virtual', 'override',
+      // State & Variable
+      'mapping', 'storage', 'memory', 'calldata', 'constant', 'immutable',
+      // Logic & Control
+      'if', 'else', 'for', 'while', 'do', 'break', 'continue', 'return', 'returns', 'emit', 'revert', 'require', 'assert', 'try', 'catch',
+      // Global variables & symbols
+      'msg', 'block', 'tx', 'now', 'this', 'super', 'selfdestruct', 'type',
+      // Assembly
+      'assembly', 'let'
+    ],
+  },
 ];
 
 // Get keywords by language slug

@@ -11,7 +11,7 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY || '',
-    model: process.env.OPENROUTER_MODEL || 'kwaipilot/kat-coder-pro:free',
+    model: process.env.OPENROUTER_MODEL || 'kwaipilot/kat-coder-pro',
     baseUrl: 'https://openrouter.ai/api/v1',
   },
 };
